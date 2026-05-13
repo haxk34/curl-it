@@ -4,15 +4,17 @@ import os
 
 app = Flask(__name__)
 
-# ---------- SCREEN SETTINGS ----------
+# ---------- SETTINGS ----------
 WIDTH = 50
 HEIGHT = 12
+
 
 # ---------- UTIL ----------
 def clear():
     return "\033[2J\033[H"
 
-def make_grid(player_y, obstacles):
+
+def make_screen(player_y, obstacles):
     grid = [[" " for _ in range(WIDTH)] for _ in range(HEIGHT)]
 
     # ground
@@ -32,55 +34,62 @@ def make_grid(player_y, obstacles):
 
     return "\n".join("".join(row) for row in grid)
 
-def stream(frames, delay=0.08):
+
+def stream(frames, delay=0.06):
     def gen():
         for f in frames:
             yield clear() + f
             time.sleep(delay)
     return Response(gen(), mimetype="text/plain")
 
-# ---------- TEST PHYSICS ----------
+
+# =========================================================
+# 🧪 PHYSICS DEMO
+# =========================================================
 @app.route("/physics")
-def test():
+def physics():
 
     y = 2
     vy = 0
-    gravity = 0.4
+    gravity = 0.35
 
     frames = []
 
-    for _ in range(100):
-
+    for _ in range(120):
         vy += gravity
         y += vy
 
         if y > HEIGHT - 2:
             y = HEIGHT - 2
-            vy *= -0.7
+            vy *= -0.6
 
-        frames.append(make_grid(y, []))
+        frames.append(make_screen(y, []))
 
     return stream(frames, 0.05)
 
-# ---------- GD RUNNER ----------
+
+# =========================================================
+# 🎮 GEOMETRY DASH STYLE RUNNER
+# =========================================================
 @app.route("/gd")
 def gd():
 
     y = HEIGHT - 2
     vy = 0
-    gravity = 0.5
-    jump = -3.5
+    gravity = 0.45
+    jump_power = -3.8
 
-    obstacles = [20, 40, 60, 80, 100]
+    obstacles = [20, 35, 50, 70, 90]
 
     frames = []
 
-    for t in range(120):
+    for t in range(160):
 
-        # auto jump rhythm
-        if t % 20 == 0:
-            vy = jump
+        # fake rhythm jump timing
+        if t % 25 == 0:
+            vy = jump_power
 
+        # physics
         vy += gravity
         y += vy
 
@@ -88,27 +97,34 @@ def gd():
             y = HEIGHT - 2
             vy = 0
 
-        # move obstacles
+        # move obstacles left
         obstacles = [x - 1 for x in obstacles if x > 0]
 
         # spawn new obstacles
-        if t % 25 == 0:
+        if t % 30 == 0:
             obstacles.append(WIDTH - 1)
 
-        frames.append(make_grid(y, obstacles))
+        frames.append(make_screen(y, obstacles))
 
     return stream(frames, 0.06)
 
-# ---------- HOME ----------
+
+# =========================================================
+# 🏠 HOME
+# =========================================================
 @app.route("/")
 def home():
     return """
-Terminal GD Demo
+Terminal Game Server
 
-curl /physics -> physics
-curl /gd   -> geometry dash runner
+Routes:
+/physics -> gravity demo
+/gd      -> Geometry Dash style runner
 """
 
-# ---------- RUN ----------
+
+# =========================================================
+# RUN (IMPORTANT FOR RENDER)
+# =========================================================
 port = int(os.environ.get("PORT", 10000))
 app.run(host="0.0.0.0", port=port)
